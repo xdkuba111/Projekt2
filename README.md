@@ -1,0 +1,324 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <locale.h>
+
+struct Obraz
+{
+	int szerokosc, wysokosc;
+	int maxJasnosc;
+	int **dane;
+	char nazwa[20];
+};
+
+int lepszyScanf();
+void zwolnijObraz(struct Obraz **);
+struct Obraz *alokacja(int, int);
+int wczytajWartosc(FILE *);
+struct Obraz * wczytajObraz();
+void dodajObraz(struct Obraz ***, int *, struct Obraz *);
+void Zapis_Obrazu(struct Obraz *);
+void Drukuj_Liste_Obrazow(struct Obraz **, int);
+struct Obraz * Wybor_Obrazu(struct Obraz **, int);
+void usunobraz(struct Obraz ***, int *);
+
+
+int main()
+{
+	struct Obraz *img = NULL;
+	struct Obraz **tablica_do_obrazow = NULL;
+	int rozmiar_tab_do_obrazow = 0;
+	int menu = 1;
+	int menu_case1 = 1;
+	setlocale(LC_ALL, "Polish");
+	while (menu)
+	{
+		printf("0. Zamknij program\n1. Wczytaj obraz\n2. Dodaj obraz do listy\n3. Lista obrazow\n4. Wybor aktywnego obrazu\n5. Usun obraz z listy\n");
+		menu = lepszyScanf();
+		{
+			switch (menu)
+			{
+			case 1:
+				system("cls");
+				img = wczytajObraz();
+				if (img != NULL) {
+					printf("Wczytano pomyslnie\n");
+				}
+				break;
+			case 2:
+				system("cls");
+				if (img != NULL) {
+					dodajObraz(&tablica_do_obrazow, &rozmiar_tab_do_obrazow, img);
+					img = NULL;
+				}
+				else printf("Blad, najpierw wczytaj obraz!\n");
+				break;
+			case 3:
+				system("cls");
+				if (tablica_do_obrazow != NULL) {
+					Drukuj_Liste_Obrazow(tablica_do_obrazow, rozmiar_tab_do_obrazow);
+				}
+				else printf("BLAD! Lista obrazow jest pusta!\n");
+				break;
+			case 4:
+				system("cls");
+				if (tablica_do_obrazow != NULL) {
+					img = Wybor_Obrazu(tablica_do_obrazow, rozmiar_tab_do_obrazow);
+				}
+				else printf("Blad! Pusta lista!\n");
+				break;
+			case 5:
+				system("cls");
+				usunobraz(&tablica_do_obrazow, &rozmiar_tab_do_obrazow);
+				break;
+			case 0:
+				//zwolnijTablice
+				printf("Koniec\n");
+				break;
+			default:
+				printf("Wybierz poprawny krok\n");
+				break;
+			}
+		}
+	}
+}
+
+
+int lepszyScanf()
+{
+	int liczba;
+	while (1)
+	{
+		if (!scanf("%d", &liczba))
+		{
+			while (getchar() != '\n');
+			printf("Sproboj ponownie\n");
+		}
+		else {
+			while (getchar() != '\n');
+			return liczba;
+		}
+	}
+}
+
+void zwolnijObraz(struct Obraz **obr)
+{
+	int h;
+	if (*obr != NULL)
+	{
+		if ((*obr)->dane != NULL)
+		{
+			for (h = 0; h<(*obr)->wysokosc; ++h)
+				free((*obr)->dane[h]);
+			free((*obr)->dane);
+		}
+		free(*obr);
+		*obr = NULL;
+	}
+}
+
+struct Obraz *alokacja(int wysokosc, int szerokosc)
+{
+	struct Obraz *ret;
+	int i;
+	ret = (struct Obraz *)calloc(1, sizeof(struct Obraz));
+	if (ret != NULL)
+	{
+		ret->wysokosc = wysokosc;
+		ret->szerokosc = szerokosc;
+
+		ret->dane = (int**)calloc(wysokosc, sizeof(int*));
+		if (ret->dane != NULL)
+		{
+			for (i = 0; i<wysokosc; ++i)
+			{
+				ret->dane[i] = (int*)calloc(szerokosc, sizeof(int));
+				if (ret->dane[i] == NULL)
+				{
+					zwolnijObraz(&ret);
+					return NULL;
+				}
+			}
+		}
+		else
+		{
+			zwolnijObraz(&ret);
+			return NULL;
+		}
+	}
+	return ret;
+}
+
+int wczytajWartosc(FILE *plik)
+{
+	int val;
+	char zn[2];
+	while (1)
+	{
+		if (fscanf(plik, "%d", &val) == 1)
+		{
+			return val;
+		}
+		if (fscanf(plik, "%1s", zn) == 1 && zn[0] == '#')
+		{
+			fscanf(plik, "%*[^\n]");
+		}
+		else
+		{
+			return -1;
+		}
+	}
+}
+
+struct Obraz * wczytajObraz()
+{
+	char nazwa[20];
+	char id[3];
+	FILE *plik;
+	int wysokosc, szerokosc, jasnosc, x, y;
+	int blad = 1;
+	struct Obraz *obr;
+	printf("Podaj nazwe pliku:");
+	scanf("%19s", nazwa);
+	plik = fopen(nazwa, "rt");
+	if (plik != NULL)
+	{
+		if (fscanf(plik, "%2s", id) == 1 && id[0] == 'P' && (id[1] == '2' || id[1] == '5'))
+		{
+			wysokosc = wczytajWartosc(plik);
+			szerokosc = wczytajWartosc(plik);
+			jasnosc = wczytajWartosc(plik);
+			if (wysokosc>0 && szerokosc>0 && jasnosc>0)
+			{
+				obr = alokacja(wysokosc, szerokosc);
+				if (obr != NULL)
+				{
+					obr->szerokosc = szerokosc;
+					obr->wysokosc = wysokosc;
+					obr->maxJasnosc = jasnosc;
+					strncpy(obr->nazwa, nazwa, 19);
+					for (x = 0; x<wysokosc; ++x)
+					{
+						for (y = 0; y<szerokosc; ++y)
+						{
+							obr->dane[x][y] = wczytajWartosc(plik);
+							if (obr->dane[x][y]<0)
+							{
+								zwolnijObraz(&obr);
+								return NULL;
+							}
+						}
+					}
+					return obr;
+				}
+				blad = 0;
+			}
+		}
+		if (blad) printf("Bledny format pliku");
+		fclose(plik);
+		return NULL;
+	}
+	else
+	{
+		printf("Nie udalo sie otworzyc pliku %s\n", nazwa);
+	}
+	return NULL;
+}
+
+void Zapis_Obrazu(struct Obraz *obrazek) {
+	int i, j;
+	char nazwa_pliku[99];
+	FILE *plik;
+	if (obrazek != 0) {
+		printf("Podaj nazwe pliku\n");
+		scanf("%s", nazwa_pliku);
+		plik = fopen(nazwa_pliku, "wt");
+		if (plik != NULL)
+		{
+			fprintf(plik, "P2\n%d %d\n%d\n", obrazek->wysokosc, obrazek->szerokosc, obrazek->maxJasnosc);
+			for (i = 0; i < obrazek->wysokosc; ++i)
+			{
+				for (j = 0; j < obrazek->szerokosc; j++)
+				{
+					fprintf(plik, "%d", obrazek->dane[i][j]);
+					fprintf(plik, " ");
+				}
+				fprintf(plik, "\n");
+			}
+
+			fclose(plik);
+		}
+	}
+}
+
+void dodajObraz(struct Obraz *** Tablica_Obrazow, int *rozmiar, struct Obraz *obr) {
+	struct Obraz ** tab_tmp = NULL;
+	if (obr != NULL)
+	{
+		tab_tmp = (struct Obraz **)realloc(*Tablica_Obrazow, (*rozmiar + 1) * sizeof(struct Obraz *));
+		if (tab_tmp != NULL) {
+			*Tablica_Obrazow = tab_tmp;
+			(*Tablica_Obrazow)[*rozmiar] = obr;
+			*rozmiar = *rozmiar + 1;
+			printf("OK\n");
+		}
+	}
+	else printf("BLAD\n");
+}
+
+void Drukuj_Liste_Obrazow(struct Obraz **tab, int rozmiar)
+{
+	int i;
+	printf("lista obrazów \n");
+	for (i = 0; i < rozmiar; ++i)
+	{
+		printf("%d. %s \n", i, tab[i]->nazwa);
+	}
+	printf("\n");
+}
+
+struct Obraz * Wybor_Obrazu(struct Obraz **tab, int rozmiar) {
+	struct Obraz * obr = NULL;
+	int indeks;
+	if (rozmiar != 0)
+	{
+		while (1)
+		{
+			Drukuj_Liste_Obrazow(tab, rozmiar);
+			printf("wybierz indeks obrazu\n");
+			indeks = lepszyScanf();
+			if (indeks < 0) return NULL;
+			if (indeks >= 0 && indeks < rozmiar)
+				system("cls");
+			printf("Wybrano pomyslnie\n\n");
+			return tab[indeks];
+			system("cls");
+			printf("BLAD! Wybierz liczbe z ponizszego zakresu\n");
+		}
+	}
+	else
+	{
+		printf("Brak obrazow\n");
+		return NULL;
+	}
+}
+
+void usunobraz(struct Obraz ***tablica_obrazow, int *rozmiar) {
+	int indeks;
+	if (*rozmiar > 0)
+	{
+		Drukuj_Liste_Obrazow(*tablica_obrazow, *rozmiar);
+		printf("Wybierz indeks obrazu do usunięcia\n");
+		indeks = lepszyScanf();
+		if (indeks == -1) return;
+		if (indeks >= 0 && indeks < *rozmiar)
+			{
+				zwolnijObraz(&((*tablica_obrazow)[indeks]));
+				(*rozmiar)--;
+				(*tablica_obrazow)[indeks] = (*tablica_obrazow)[*rozmiar];
+				*tablica_obrazow = (struct Obraz **) realloc(*tablica_obrazow, sizeof(struct Obraz *)*(*rozmiar));
+			}
+			else printf("błedny indeks \n");
+		}
+	else printf("Pusta lista obrazow\n\n");
+}

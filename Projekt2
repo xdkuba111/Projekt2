@@ -151,31 +151,11 @@ struct Obraz *alokacja(int wysokosc, int szerokosc)
 	return ret;
 }
 
-int wczytajWartosc(FILE *plik)
-{
-	int val;
-	char zn[2];
-	while (1)
-	{
-		if (fscanf(plik, "%d", &val) == 1)
-		{
-			return val;
-		}
-		if (fscanf(plik, "%1s", zn) == 1 && zn[0] == '#')
-		{
-			fscanf(plik, "%*[^\n]");
-		}
-		else
-		{
-			return -1;
-		}
-	}
-}
-
 struct Obraz * wczytajObraz()
 {
 	char nazwa[20];
 	char id[3];
+	char znak;
 	FILE *plik;
 	int wysokosc, szerokosc, jasnosc, x, y;
 	int blad = 1;
@@ -185,11 +165,13 @@ struct Obraz * wczytajObraz()
 	plik = fopen(nazwa, "rt");
 	if (plik != NULL)
 	{
-		if (fscanf(plik, "%2s", id) == 1 && id[0] == 'P' && (id[1] == '2' || id[1] == '5'))
+		if (fscanf(plik, "%2s", id) == 1 && id[0] == 'P' && id[1] == '2')
 		{
-			wysokosc = wczytajWartosc(plik);
-			szerokosc = wczytajWartosc(plik);
-			jasnosc = wczytajWartosc(plik);
+			while (!fscanf(plik, "%d", &wysokosc)) {
+				while ((znak = fgetc(plik)) != '\n' && znak != EOF);
+			}
+			if(!fscanf(plik, "%d", &szerokosc)) szerokosc = 0;
+			if(!fscanf(plik, "%d", &jasnosc)) jasnosc = 0;
 			if (wysokosc>0 && szerokosc>0 && jasnosc>0)
 			{
 				obr = alokacja(wysokosc, szerokosc);
@@ -203,8 +185,7 @@ struct Obraz * wczytajObraz()
 					{
 						for (y = 0; y<szerokosc; ++y)
 						{
-							obr->dane[x][y] = wczytajWartosc(plik);
-							if (obr->dane[x][y]<0)
+							if( fscanf(plik, "%d", &obr->dane[x][y]) != 1)
 							{
 								zwolnijObraz(&obr);
 								return NULL;
@@ -314,13 +295,13 @@ void usunobraz(struct Obraz ***tablica_obrazow, int *rozmiar) {
 		indeks = lepszyScanf();
 		if (indeks == -1) return;
 		if (indeks >= 0 && indeks < *rozmiar)
-			{
-				zwolnijObraz(&((*tablica_obrazow)[indeks]));
-				(*rozmiar)--;
-				(*tablica_obrazow)[indeks] = (*tablica_obrazow)[*rozmiar];
-				*tablica_obrazow = (struct Obraz **) realloc(*tablica_obrazow, sizeof(struct Obraz *)*(*rozmiar));
-			}
-			else printf("błedny indeks \n");
+		{
+			zwolnijObraz(&((*tablica_obrazow)[indeks]));
+			(*rozmiar)--;
+			(*tablica_obrazow)[indeks] = (*tablica_obrazow)[*rozmiar];
+			*tablica_obrazow = (struct Obraz **) realloc(*tablica_obrazow, sizeof(struct Obraz *)*(*rozmiar));
 		}
+		else printf("błedny indeks \n");
+	}
 	else printf("Pusta lista obrazow\n\n");
 }
